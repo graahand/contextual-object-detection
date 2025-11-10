@@ -1,1 +1,27 @@
-/main_envv/
+# Virtual environments
+cont_env/
+venv/
+env/
+.venv/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Large binaries / model weights
+*.dll
+*.so
+*.dylib
+*.h5
+*.pt
+*.pth
+*.ckpt
+*.onnx
+*.tflite
+*.pkl
+
+# Logs
+logs/
+*.log
