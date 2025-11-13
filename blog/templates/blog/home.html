@@ -1,0 +1,277 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Contextual Object Detection</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'blog/main.css' %}">
+    <style>
+        .btn{
+            border-radius: 50px;
+        }
+        .btn:hover{
+             transform: translateY(-2px);
+             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+        }
+        .results-container {
+            max-width: 800px;
+            margin: 20px auto;
+            padding: 20px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .caption-section {
+            margin-bottom: 20px;
+            padding: 15px;
+            border-radius: 8px;
+            background: #f8f9fa;
+        }
+
+        .caption-section h3 {
+            margin-top: 0;
+            color: #333;
+            font-size: 1.2em;
+            margin-bottom: 10px;
+        }
+
+        .caption-content {
+            line-height: 1.6;
+            color: #444;
+        }
+
+        .query-section {
+            margin-top: 20px;
+        }
+
+        .query-input-container {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .query-input {
+            flex: 1;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 1rem;
+        }
+
+        .result-image {
+            max-width: 100%;
+            height: auto;
+            margin-bottom: 20px;
+            border-radius: 8px;
+        }
+
+        #speech-to-text-btn {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 44px;
+            height: 44px;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            flex-shrink: 0;
+        }
+
+        #speech-to-text-btn:hover {
+            background-color: var(--primary-dark);
+            transform: scale(1.05);
+        }
+
+        #speech-to-text-btn.recording {
+            background-color: var(--error);
+            animation: pulse 2s infinite;
+        }
+
+        #speech-to-text-btn i {
+            font-size: 1.2rem;
+        }
+
+        @keyframes pulse {
+            0% {
+                box-shadow: 0 0 0 0 rgba(244, 67, 54, 0.7);
+            }
+
+            70% {
+                box-shadow: 0 0 0 10px rgba(244, 67, 54, 0);
+            }
+
+            100% {
+                box-shadow: 0 0 0 0 rgba(244, 67, 54, 0);
+            }
+        }
+    </style>
+</head>
+
+<body>
+    {% csrf_token %}
+    <div class="container">
+        <header class="header">
+            <h1 style="font-weight: 600; font-size: xx-large;">Contextual Object Detection</h1>
+            {% if user.is_authenticated %}
+            <div class="user-actions" style="display: flex; gap: 10px; align-items: center;">
+                <a href="{% url 'blog:profile' %}" class="btn" style="display: flex; align-items: center; gap: 10px;">
+                    {% if user.profile.profile_picture %}
+                    <img src="{{ user.profile.profile_picture.url }}" alt="{{ user.username }}"
+                        style="width: 30px; height: 30px; border-radius: 50%; object-fit: cover;">
+                    {% else %}
+                    <i class="fas fa-user-circle"></i>
+                    {% endif %}
+                    {{ user.username }}
+                </a>
+                <a href="{% url 'blog:logout' %}" class="btn">
+                    <i class="fas fa-sign-out-alt"></i> Logout
+                </a>
+                {% if user.is_staff %}
+                <a href="{% url 'blog:admin_dashboard' %}" class="admin-btn">
+                    <i class="fas fa-cog"></i> Admin Dashboard
+                </a>
+                {% endif %}
+            </div>
+            {% else %}
+            <div class="auth-actions" style="display: flex; gap: 10px;">
+                <!-- <a href="{% url 'blog:login' %}" class="btn">
+                    <i class="fas fa-sign-in-alt"></i> Login
+                </a> -->
+                <p style="color: rgb(93, 92, 92);">Already have an account? 
+                    <a href="{% url 'blog:login' %}" class="btn"
+                    style="background: var(--primary); color: white; padding: 10px 20px;">
+                    <i class="fas fa-user-plus"></i> Login Here
+                </a>
+                </p>
+            </div>
+            {% endif %}
+        </header>
+
+        {% if user.is_authenticated %}
+        <div class="upload-section">
+            <div class="upload-area" id="drop-zone">
+                <div class="upload-placeholder">
+                    <p>
+                    <img src="{% static 'blog/image/gallery.png' %}" alt="upload image">
+                    <p style="color: black;">Drop your image here</p>
+                    <p class="upload-or" style="color: black;">or</p>
+                    <input type="file" id="file-input" accept="image/*" hidden>
+                    <button class="btn" id="browse-files-btn">Browse Files</button>
+                </div>
+            </div>
+
+            <div class="upload-options">
+                <button class="btn primarey" id="upload-btn" disabled>
+                    <span class="btn-icon">⇪</span> Upload
+                </button>
+                <button class="btn" id="camera-btn">
+                    <span class="btn-icon">📷</span> Camera
+                </button>
+                <button class="btn blue" id="reset-btn">
+                    <span class="btn-icon">🔄</span> Upload Again
+                </button>
+            </div>
+
+            <div class="query-section">
+                <div class="query-input-container">
+                    <input type="text" id="query-input" class="query-input"
+                        placeholder="Ask a question about the image (optional)">
+                    <button id="speech-to-text-btn" class="btn" title="Speak your question (15s)">
+                        <i class="fas fa-microphone"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+        {% else %}
+        
+        <div class="main-block" style="display: flex; justify-content: center; max-width: 1200px; margin:auto;">
+            <div class="login-required-message"
+                style="padding: 30px; border-radius: 10px; text-align: justify; margin: 50px 0;">
+                <h1 style="font-weight: 400; font-size: 54px; text-align: left;">Intelligent Object Detection at Your Fingertips</h1>
+                <a href="{% url 'blog:register' %}" class="btn blue" style="margin: 50px; padding: 10px 50px; background: transparent; color: rgb(9, 9, 122);">Register to Continue</a>
+                <p style="color: rgb(106, 105, 105);">By clicking to continue to join or sign in, you agree to our User Agreeement, Privacy Policy, and Cookie Policy</p>
+            </div>
+            <div class="image" style="padding: 10px; margin:auto 0; border-radius: 50px; max-width: 500px;">
+                <img src="{% static 'blog/image/img.png' %}" alt="landing image">
+            </div>
+        </div>
+
+        {% endif %}
+
+        {% if user.is_authenticated %}
+        <div id="detection-results" class="results-container">
+            {% if analysis_image %}
+            <img src="{{ analysis_image }}" alt="Analyzed image" class="result-image">
+
+            <div class="caption-section">
+                <h3>Short Caption</h3>
+                <div class="caption-content">
+                    {{ short_caption }}
+                </div>
+            </div>
+
+            {% if query_result %}
+            <div class="caption-section">
+                <h3>Query Result</h3>
+                <div class="caption-content">
+                    {{ query_result }}
+                </div>
+            </div>
+            {% endif %}
+            {% endif %}
+        </div>
+
+        {% if error %}
+        <div class="error-message">
+            <i class="fas fa-exclamation-circle"></i>
+            <p>{{ error }}</p>
+        </div>
+        {% endif %}
+
+        {% if analyses %}
+        <div class="analyses-grid">
+            <h2 style="width: 100%; margin-bottom: 20px; color: var(--text-primary);">Recent Analyses</h2>
+            {% for analysis in analyses %}
+            <div class="analysis-card">
+                {% if analysis.image %}
+                <img src="{{ analysis.image.url }}" alt="Analysis {{ analysis.id }}" class="analysis-image">
+                {% else %}
+                <div class="no-image">
+                    <i class="fas fa-image fa-3x"></i>
+                </div>
+                {% endif %}
+                <div class="analysis-details">
+                    <h3>Analysis #{{ analysis.id }}</h3>
+                    <p class="analysis-meta">
+                        <i class="fas fa-calendar"></i> {{ analysis.upload_date|date:"M d, Y" }}
+                    </p>
+                    {% if analysis.short_caption %}
+                    <p class="analysis-caption">{{ analysis.short_caption }}</p>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="no-analyses">
+            <i class="fas fa-image fa-3x"></i>
+            <h2>No Images Analyzed Yet</h2>
+            <p>Upload an image to see AI-powered analysis results here.</p>
+        </div>
+        {% endif %}
+        {% endif %}
+    </div>
+
+    <script src="{% static 'blog/javascripts/script.js' %}?v=3"></script>
+</body>
+
+</html>

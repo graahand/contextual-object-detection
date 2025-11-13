@@ -1,0 +1,47 @@
+Django~=5.2
+django-rq~=3.0.0
+redis~=5.2 # Python client for Redis (RQ backend) - Ensure Redis server is running separately
+
+# Machine Learning & AI Core
+# Note: Install PyTorch separately using the official command from pytorch.org
+# based on your specific CUDA version (e.g., pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121)
+# The versions below reflect the original file but might be adjusted based on official PyTorch install.
+torch>=2.6.0 # Base requirement, install CUDA version manually
+torchaudio>=2.6.0 
+torchvision>=0.21.0 
+
+transformers~=4.51.0
+accelerate>=1.6.0 
+einops>=0.8.0 
+safetensors>=0.5.0 
+
+# Speech Processing & Related
+faster-whisper~=1.1.0
+realtimestt~=0.3.100 
+openwakeword~=0.6.0 
+PyAudio>=0.2.14 
+pvporcupine>=1.9.5 
+webrtcvad-wheels>=2.0.14 
+soundfile>=0.13.0 
+av>=14.3.0 
+
+# Inference & Optimization 
+ctranslate2~=4.6.0
+onnxruntime~=1.21.0
+# tflite-runtime~=2.14.0 
+
+# Image Processing
+pyvips~=2.2.0
+Pillow~=11.2.0
+
+# Data Science & Utilities
+numpy>=2.0.0 
+scikit-learn~=1.6.0
+PyYAML~=6.0 # For configuration files
+requests~=2.32.0 # For HTTP requests
+websockets>=15.0 # asyncio websockets
+websocket-client>=1.8.0 # synchronous websockets
+psutil>=7.0.0 # system resources
+
+# triton>=3.2.0 # Usually installed with specific torch builds if needed for Flash Attention etc.
+

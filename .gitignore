@@ -1,0 +1,63 @@
+# ------------------------
+# Virtual environments
+# ------------------------
+cont_env/
+venv/
+env/
+.venv/
+
+# ------------------------
+# Python cache / compiled files
+# ------------------------
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# ------------------------
+# IDE / Editor settings
+# ------------------------
+.vscode/
+.idea/
+*.sublime-workspace
+*.sublime-project
+
+# ------------------------
+# Large binaries / model weights / compiled libraries
+# ------------------------
+*.dll
+*.so
+*.dylib
+*.h5
+*.pt
+*.pth
+*.ckpt
+*.onnx
+*.tflite
+*.pkl
+
+# ------------------------
+# Logs
+# ------------------------
+logs/
+*.log
+
+# ------------------------
+# OS / System files
+# ------------------------
+.DS_Store
+Thumbs.db
+
+# ------------------------
+# Temporary / backup files
+# ------------------------
+*.tmp
+*.bak
+*.swp
+
+.Project Artefacts/
+.Reports/
+
+realtimesst.log
+
+cont_env/
