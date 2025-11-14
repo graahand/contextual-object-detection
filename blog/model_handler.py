@@ -1,7 +1,7 @@
 import torch
-from transformers import AutoModelForCausalLM, AutoProcessor
-import logging
+from transformers import AutoProcessor, AutoModelForVision2Seq
 from PIL import Image
+import logging
 import os
 
 # Configure logging
@@ -27,87 +27,65 @@ class ModelHandler:
 
     def initialize_model(self):
         try:
+            DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+            self._use_cuda = DEVICE == "cuda"
+            if self._processor is None:
+                self._processor = AutoProcessor.from_pretrained("HuggingFaceTB/SmolVLM-500M-Instruct")
             if self._model is None:
-                # Check if CUDA is available and has enough memory
-                self._use_cuda = torch.cuda.is_available()
-                
-                if self._use_cuda:
-                    # Get available GPU memory
-                    gpu_memory = torch.cuda.get_device_properties(0).total_memory / (1024**3)  # Convert to GB
-                    logger.info(f"GPU memory available: {gpu_memory:.2f} GB")
-                    
-                    # If GPU has less than 4GB, use CPU instead
-                    if gpu_memory < 4:
-                        logger.warning(f"GPU memory ({gpu_memory:.2f} GB) is too low. Falling back to CPU.")
-                        self._use_cuda = False
-                
-                device = torch.device("cuda" if self._use_cuda else "cpu")
-                logger.info(f"Using device: {device}")
-                
-                # Initialize model with memory optimization
-                if self._use_cuda:
-                    # For CUDA, use device_map="auto" with memory optimization
-                    self._model = AutoModelForCausalLM.from_pretrained(
-                        "vikhyatk/moondream2",
-                        revision="2025-04-14",
-                        trust_remote_code=True,
-                        device_map="auto",
-                        torch_dtype=torch.float16,  # Use half precision to reduce memory usage
-                        low_cpu_mem_usage=True
-                    )
-                else:
-                    # For CPU, use memory optimization
-                    self._model = AutoModelForCausalLM.from_pretrained(
-                        "vikhyatk/moondream2",
-                        revision="2025-04-14",
-                        trust_remote_code=True,
-                        low_cpu_mem_usage=True
-                    )
-                    
-                logger.info(f"Successfully loaded Moondream2 model on {device}")
+                self._model = AutoModelForVision2Seq.from_pretrained(
+                    "HuggingFaceTB/SmolVLM-256M-Instruct",
+                    torch_dtype=torch.bfloat16 if self._use_cuda else torch.float32,
+                    _attn_implementation="flash_attention_2" if self._use_cuda else "eager",
+                ).to(DEVICE)
+            logger.info(f"Successfully loaded SmolVLM model on {DEVICE}")
         except Exception as e:
-            logger.error(f"Error loading Moondream2 model: {e}")
-            # If CUDA fails, try CPU as fallback
-            if self._use_cuda:
-                logger.warning("CUDA initialization failed. Falling back to CPU.")
-                self._use_cuda = False
-                self.initialize_model()
-            else:
-                raise
+            logger.error(f"Error loading SmolVLM model: {e}")
+            raise
+
+    def _prepare_inputs(self, image, question_text):
+        # Support image path or PIL Image
+        if isinstance(image, str):
+            image = Image.open(image)
+        if image.mode != "RGB":
+            image = image.convert("RGB")
+        DEVICE = "cuda" if self._use_cuda else "cpu"
+        messages = [
+            {
+                "role": "user",
+                "content": [
+                    {"type": "image"},
+                    {"type": "text", "text": question_text},
+                ]
+            },
+        ]
+        prompt = self._processor.apply_chat_template(messages, add_generation_prompt=True)
+        inputs = self._processor(text=prompt, images=[image], return_tensors="pt").to(DEVICE)
+        return inputs
 
     def generate_short_caption(self, image):
         """Generate a short caption for the image."""
         try:
-            if isinstance(image, str):
-                image = Image.open(image)
-            if image.mode != "RGB":
-                image = image.convert("RGB")
-            
-            # Clear CUDA cache before processing if using CUDA
             if self._use_cuda:
                 torch.cuda.empty_cache()
-                
-            result = self._model.caption(image, length="short")
-            logger.info(f"Generated short caption: {result['caption']}")
-            return result["caption"]
+            inputs = self._prepare_inputs(image, "Describe the image in detail.")
+            generated_ids = self._model.generate(**inputs, max_new_tokens=50)
+            generated_texts = self._processor.batch_decode(generated_ids, skip_special_tokens=True)
+            caption = generated_texts[0]
+            logger.info(f"Generated short caption: {caption}")
+            return caption
         except Exception as e:
             logger.error(f"Error generating short caption: {e}")
             raise
 
     def generate_normal_caption(self, image):
-        """Generate a normal caption for the image."""
+        """Generate a descriptive caption for the image."""
         try:
-            if isinstance(image, str):
-                image = Image.open(image)
-            if image.mode != "RGB":
-                image = image.convert("RGB")
-            
-            # Clear CUDA cache before processing if using CUDA
             if self._use_cuda:
                 torch.cuda.empty_cache()
-                
-            result = self._model.caption(image, length="normal", stream=True)
-            caption = "".join(result["caption"])
+            inputs = self._prepare_inputs(image, "Describe this image in detail.")
+            generated_ids = self._model.generate(**inputs, max_new_tokens=100)
+            generated_texts = self._processor.batch_decode(generated_ids, skip_special_tokens=True)
+            caption = generated_texts[0]
             logger.info(f"Generated normal caption: {caption}")
             return caption
         except Exception as e:
@@ -117,18 +95,14 @@ class ModelHandler:
     def process_query(self, image, query="What is in this image?"):
         """Process a query about the image."""
         try:
-            if isinstance(image, str):
-                image = Image.open(image)
-            if image.mode != "RGB":
-                image = image.convert("RGB")
-            
-            # Clear CUDA cache before processing if using CUDA
             if self._use_cuda:
                 torch.cuda.empty_cache()
-                
-            result = self._model.query(image, query)
-            logger.info(f"Generated query response: {result['answer']}")
-            return result["answer"]
+            inputs = self._prepare_inputs(image, query)
+            generated_ids = self._model.generate(**inputs, max_new_tokens=100)
+            generated_texts = self._processor.batch_decode(generated_ids, skip_special_tokens=True)
+            answer = generated_texts[0]
+            logger.info(f"Generated query response: {answer}")
+            return answer
         except Exception as e:
             logger.error(f"Error processing query: {e}")
             raise 
