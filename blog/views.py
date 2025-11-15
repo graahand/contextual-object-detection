@@ -103,17 +103,18 @@ def process_image_task(image_file, query_text="", user_id=None):
         image = Image.open(image_file).convert("RGB")
         logger.info(f"Processing image: {image_file}")
         
-        # Generate short caption 
+        # Generate short caption (always)
         short_caption = model_handler.generate_short_caption(image)
-        
-        # Process the query if provided, otherwise use default query
+
+        # Process ONLY if user gave a query
         if query_text.strip():
-            logger.info(f"Processing custom query: {query_text}")
-            query_result = model_handler.process_query(image, query_text)
+            caption_query = query_text.strip()
+            logger.info(f"Processing query: {caption_query}")
+            query_result = model_handler.process_query(image, caption_query)
         else:
-            # Only generate the caption without a specific query
+            caption_query = None
             query_result = None
-        
+
         # Create analysis record
         analysis_data = {
             'image': image_file,
@@ -144,6 +145,7 @@ def process_image_task(image_file, query_text="", user_id=None):
 def process_image(request):
     """Handle image upload and processing."""
     try:
+        print("Started Processing")
         if 'image' not in request.FILES:
             return JsonResponse({'error': 'No image file provided'}, status=400)
             
@@ -166,6 +168,7 @@ def process_image(request):
                 job_timeout=1200,  # 20 minutes timeout (increased from 10)
                 result_ttl=86400  # Results stored for 24 hours
             )
+            print("Returning JSON")
             
             # Return the job ID and initial response
             return JsonResponse({
@@ -178,6 +181,7 @@ def process_image(request):
             # Fall back to direct processing without Redis
             try:
                 # Process directly without Redis
+                print("Started processing without redis")
                 analysis_id = process_image_task(image_file, query_text, user_id)
                 if analysis_id:
                     analysis = ImageAnalysis.objects.get(id=analysis_id)
@@ -190,6 +194,7 @@ def process_image(request):
                         'query_result': analysis.query_result
                     })
                 else:
+                    print("failed sending json")
                     return JsonResponse({
                         'status': 'failed',
                         'error': 'Failed to process image directly'
@@ -572,3 +577,9 @@ def speech_to_text(request):
         'status': 'error',
         'message': 'Method not allowed'
     }, status=405) 
+    
+    
+@login_required
+def recent_analyses(request):
+    analyses = ImageAnalysis.objects.filter(user=request.user).order_by('-upload_date')[:10]
+    return render(request, "blog/recent_analyses_partial.html", {"analyses": analyses})

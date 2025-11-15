@@ -151,17 +151,9 @@ document.addEventListener("DOMContentLoaded", function() {
         }
     }
 
-    function processImage(file) {
-        // Show loading state
-        resultsContainer.innerHTML = `
-            <div class="loading">
-                <i class="fas fa-spinner fa-spin fa-3x"></i>
-                <p>Processing image...</p>
-            </div>
-        `;
+    function processImage(file) { 
         uploadBtn.disabled = true;
         uploadBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
-
         const formData = new FormData();
         formData.append('image', file);
         
@@ -195,11 +187,12 @@ document.addEventListener("DOMContentLoaded", function() {
             if (data.error) {
                 throw new Error(data.error);
             }
-
+            
             if (data.status === 'processing') {
                 // Start polling for results
                 pollForResults(data.job_id);
             }
+            displayResults(data)
         })
         .catch(error => {
             resultsContainer.innerHTML = `
@@ -357,6 +350,7 @@ document.addEventListener("DOMContentLoaded", function() {
             
             // Scroll to upload area
             dropZone.scrollIntoView({ behavior: 'smooth' });
+            refreshRecentAnalyses()
         });
 
         // Reset upload button
@@ -569,3 +563,20 @@ document.addEventListener("DOMContentLoaded", function() {
         }
     }
 });
+
+function refreshRecentAnalyses() {
+    fetch('/blog/recent-analyses/')
+    .then(response => response.text())
+    .then(html => {
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, "text/html");
+
+        const updatedAnalyses = doc.querySelector(".analyses-grid");
+
+        const current = document.querySelector(".analyses-grid");
+        if (current && updatedAnalyses) {
+            current.replaceWith(updatedAnalyses);
+        }
+    });
+}
+

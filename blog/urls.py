@@ -29,4 +29,8 @@ urlpatterns = [
     
     # Speech to text
     path('speech-to-text/', views.speech_to_text, name='speech_to_text'),
+    
+    # recent analysis for a user
+    path("recent-analyses/", views.recent_analyses, name="recent_analyses"),
+
 ]

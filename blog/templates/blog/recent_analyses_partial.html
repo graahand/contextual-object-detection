@@ -1,0 +1,31 @@
+{% if analyses %}
+<div class="analyses-grid">
+    <h2 style="width: 100%; margin-bottom: 20px;">Recent Analyses</h2>
+
+    {% for analysis in analyses %}
+    <div class="analysis-card">
+
+        {% if analysis.image %}
+        <img src="{{ analysis.image.url }}" class="analysis-image">
+        {% endif %}
+
+        <div class="analysis-details">
+            <h3>Analysis #{{ analysis.id }}</h3>
+            <p>{{ analysis.upload_date|date:"M d, Y" }}</p>
+
+            {% if analysis.short_caption %}
+            <p>{{ analysis.short_caption }}</p>
+            {% endif %}
+
+            {% if analysis.query_result %}
+            <p class="analysis-result">
+                <strong>Query:</strong><br>
+                {{ analysis.query_result }}
+            </p>
+            {% endif %}
+        </div>
+
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
