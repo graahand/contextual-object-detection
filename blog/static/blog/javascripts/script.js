@@ -1,4 +1,4 @@
-document.addEventListener("DOMContentLoaded", function() {
+document.addEventListener("DOMContentLoaded", function () {
     console.log("JavaScript loaded successfully!");
 
     // Get elements
@@ -36,15 +36,21 @@ document.addEventListener("DOMContentLoaded", function() {
 
     // File input change handler
     if (fileInput) {
-        fileInput.addEventListener("change", function(e) {
+        fileInput.addEventListener("change", function (e) {
             if (this.files.length > 0) {
                 const file = this.files[0];
                 if (file.type.startsWith('image/')) {
-                    uploadBtn.disabled = false;
-                    dropZone.querySelector('.upload-placeholder').innerHTML = `
-                        <i class="fas fa-file-image fa-3x"></i>
+                    uploadBtn.disabled = true; // optional, disable until user clicks upload
+                    const reader = new FileReader();
+                    reader.onload = function (e) {
+                        dropZone.querySelector('.upload-placeholder').innerHTML = `
+                        <img src="${e.target.result}" alt="Preview" style="max-width:150px; border-radius:8px;">
                         <p>Selected: ${file.name}</p>
                     `;
+                    };
+                    reader.readAsDataURL(file);
+                    uploadBtn.disabled = false; // re-enable upload
+
                 } else {
                     alert('Please select an image file.');
                     this.value = '';
@@ -55,7 +61,7 @@ document.addEventListener("DOMContentLoaded", function() {
 
     // Upload button click handler
     if (uploadBtn) {
-        uploadBtn.addEventListener("click", function(e) {
+        uploadBtn.addEventListener("click", function (e) {
             e.preventDefault();
             if (fileInput.files.length > 0) {
                 processImage(fileInput.files[0]);
@@ -65,7 +71,7 @@ document.addEventListener("DOMContentLoaded", function() {
 
     // Reset button click handler
     if (resetBtn) {
-        resetBtn.addEventListener("click", function(e) {
+        resetBtn.addEventListener("click", function (e) {
             e.preventDefault();
             console.log("Reset button clicked");
             // Reset file input and query input
@@ -75,13 +81,13 @@ document.addEventListener("DOMContentLoaded", function() {
             if (queryInput) {
                 queryInput.value = '';
             }
-            
+
             // Reset upload button
             if (uploadBtn) {
                 uploadBtn.disabled = true;
                 uploadBtn.innerHTML = '<span class="btn-icon">⇪</span> Upload';
             }
-            
+
             // Reset drop zone
             if (dropZone) {
                 dropZone.querySelector('.upload-placeholder').innerHTML = `
@@ -90,14 +96,14 @@ document.addEventListener("DOMContentLoaded", function() {
                     <p class="upload-or">or</p>
                     <button class="btn" id="browse-files-btn">Browse Files</button>
                 `;
-                
+
                 // Re-attach event listener to the browse button
                 const newBrowseBtn = dropZone.querySelector('#browse-files-btn');
                 if (newBrowseBtn) {
                     newBrowseBtn.addEventListener("click", () => fileInput.click());
                 }
             }
-            
+
             // Clear results container
             if (resultsContainer) {
                 resultsContainer.innerHTML = '';
@@ -138,25 +144,31 @@ document.addEventListener("DOMContentLoaded", function() {
     function handleDrop(e) {
         const dt = e.dataTransfer;
         const file = dt.files[0];
-        
+
         if (file && file.type.startsWith('image/')) {
             fileInput.files = dt.files;
+            uploadBtn.disabled = true; // optional
+
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                dropZone.querySelector('.upload-placeholder').innerHTML = `
+        <img src="${e.target.result}" alt="Preview" style="max-width:150px; border-radius:8px;">
+        <p>Selected: ${file.name}</p>
+    `;
+            };
+            reader.readAsDataURL(file);
             uploadBtn.disabled = false;
-            dropZone.querySelector('.upload-placeholder').innerHTML = `
-                <i class="fas fa-file-image fa-3x"></i>
-                <p>Selected: ${file.name}</p>
-            `;
         } else {
             alert('Please drop an image file.');
         }
     }
 
-    function processImage(file) { 
+    function processImage(file) {
         uploadBtn.disabled = true;
         uploadBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
         const formData = new FormData();
         formData.append('image', file);
-        
+
         if (queryInput && queryInput.value.trim()) {
             formData.append('query_text', queryInput.value.trim());
         }
@@ -171,48 +183,48 @@ document.addEventListener("DOMContentLoaded", function() {
                 'X-CSRFToken': csrftoken
             }
         })
-        .then(response => {
-            if (response.status === 401 || response.status === 403) {
-                // User is not authenticated
-                window.location.href = '/blog/login/?next=/blog/';
-                throw new Error('You need to login to use this feature');
-            }
-            
-            if (!response.ok) {
-                throw new Error('Network response was not ok: ' + response.status);
-            }
-            return response.json();
-        })
-        .then(data => {
-            if (data.error) {
-                throw new Error(data.error);
-            }
-            
-            if (data.status === 'processing') {
-                // Start polling for results
-                pollForResults(data.job_id);
-            }
-            displayResults(data)
-        })
-        .catch(error => {
-            resultsContainer.innerHTML = `
+            .then(response => {
+                if (response.status === 401 || response.status === 403) {
+                    // User is not authenticated
+                    window.location.href = '/blog/login/?next=/blog/';
+                    throw new Error('You need to login to use this feature');
+                }
+
+                if (!response.ok) {
+                    throw new Error('Network response was not ok: ' + response.status);
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+
+                if (data.status === 'processing') {
+                    // Start polling for results
+                    pollForResults(data.job_id);
+                }
+                displayResults(data)
+            })
+            .catch(error => {
+                resultsContainer.innerHTML = `
                 <div class="error-message">
                     <i class="fas fa-exclamation-circle"></i>
                     <p>${error.message}</p>
                 </div>
             `;
-            
-            // Reset upload button
-            uploadBtn.disabled = false;
-            uploadBtn.innerHTML = '<span class="btn-icon">⇪</span> Upload';
-        });
+
+                // Reset upload button
+                uploadBtn.disabled = false;
+                uploadBtn.innerHTML = '<span class="btn-icon">⇪</span> Upload';
+            });
     }
 
     function pollForResults(jobId) {
         // Set a maximum poll count to avoid infinite polling
         let pollCount = 0;
         const maxPolls = 120; // Maximum number of polling attempts (4 minutes total)
-        
+
         // Show loading indicator
         resultsContainer.innerHTML = `
             <div class="loading-message">
@@ -220,10 +232,10 @@ document.addEventListener("DOMContentLoaded", function() {
                 <p>Processing your image... This may take up to 2 minutes.</p>
             </div>
         `;
-        
+
         const pollInterval = setInterval(() => {
             pollCount++;
-            
+
             // Check if we've reached the maximum number of polls
             if (pollCount > maxPolls) {
                 clearInterval(pollInterval);
@@ -236,52 +248,52 @@ document.addEventListener("DOMContentLoaded", function() {
                         </button>
                     </div>
                 `;
-                
+
                 // Add event listener to the retry button
                 document.getElementById('retry-btn').addEventListener('click', () => {
                     window.location.reload();
                 });
-                
+
                 // Reset upload button
                 uploadBtn.disabled = false;
                 uploadBtn.innerHTML = '<span class="btn-icon">⇪</span> Upload';
                 return;
             }
-            
+
             fetch(`/blog/check-job/${jobId}/`)
-            .then(response => {
-                if (!response.ok) {
-                    if (response.status === 500) {
-                        throw new Error('Server error. Please try again.');
-                    } else if (response.status === 404) {
-                        throw new Error('Job not found. It may have expired.');
-                    } else {
-                        throw new Error('Network response was not ok: ' + response.status);
+                .then(response => {
+                    if (!response.ok) {
+                        if (response.status === 500) {
+                            throw new Error('Server error. Please try again.');
+                        } else if (response.status === 404) {
+                            throw new Error('Job not found. It may have expired.');
+                        } else {
+                            throw new Error('Network response was not ok: ' + response.status);
+                        }
                     }
-                }
-                return response.json();
-            })
-            .then(data => {
-                if (data.status === 'completed') {
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.status === 'completed') {
+                        clearInterval(pollInterval);
+                        displayResults(data);
+                    } else if (data.status === 'failed') {
+                        clearInterval(pollInterval);
+                        throw new Error(data.error || 'Processing failed');
+                    }
+                    // If still processing, continue polling
+                })
+                .catch(error => {
                     clearInterval(pollInterval);
-                    displayResults(data);
-                } else if (data.status === 'failed') {
-                    clearInterval(pollInterval);
-                    throw new Error(data.error || 'Processing failed');
-                }
-                // If still processing, continue polling
-            })
-            .catch(error => {
-                clearInterval(pollInterval);
-                resultsContainer.innerHTML = `
+                    resultsContainer.innerHTML = `
                     <div class="error-message">
                         <i class="fas fa-exclamation-circle"></i>
                         <p>${error.message}</p>
                     </div>
                 `;
-                uploadBtn.disabled = false;
-                uploadBtn.innerHTML = '<span class="btn-icon">⇪</span> Upload';
-            });
+                    uploadBtn.disabled = false;
+                    uploadBtn.innerHTML = '<span class="btn-icon">⇪</span> Upload';
+                });
         }, 2000); // Poll every 2 seconds
     }
 
@@ -311,7 +323,7 @@ document.addEventListener("DOMContentLoaded", function() {
         `;
 
         // Add event listener to the "Upload Again" button
-        document.getElementById('upload-another-btn').addEventListener('click', function() {
+        document.getElementById('upload-another-btn').addEventListener('click', function () {
             console.log("Upload Again button clicked");
             // Reset file input and query input
             if (fileInput) {
@@ -320,13 +332,13 @@ document.addEventListener("DOMContentLoaded", function() {
             if (queryInput) {
                 queryInput.value = '';
             }
-            
+
             // Reset upload button
             if (uploadBtn) {
                 uploadBtn.disabled = true;
                 uploadBtn.innerHTML = '<span class="btn-icon">⇪</span> Upload';
             }
-            
+
             // Reset drop zone
             if (dropZone) {
                 dropZone.querySelector('.upload-placeholder').innerHTML = `
@@ -335,19 +347,19 @@ document.addEventListener("DOMContentLoaded", function() {
                     <p class="upload-or">or</p>
                     <button class="btn" id="browse-files-btn">Browse Files</button>
                 `;
-                
+
                 // Re-attach event listener to the browse button
                 const newBrowseBtn = dropZone.querySelector('#browse-files-btn');
                 if (newBrowseBtn) {
                     newBrowseBtn.addEventListener("click", () => fileInput.click());
                 }
             }
-            
+
             // Clear results container
             if (resultsContainer) {
                 resultsContainer.innerHTML = '';
             }
-            
+
             // Scroll to upload area
             dropZone.scrollIntoView({ behavior: 'smooth' });
             refreshRecentAnalyses()
@@ -356,16 +368,16 @@ document.addEventListener("DOMContentLoaded", function() {
         // Reset upload button
         uploadBtn.disabled = false;
         uploadBtn.innerHTML = '<span class="btn-icon">⇪</span> Upload';
-        
+
         // Scroll to results
         resultsContainer.scrollIntoView({ behavior: 'smooth' });
     }
 
     // Camera functionality
     if (cameraBtn) {
-        cameraBtn.addEventListener('click', function(e) {
+        cameraBtn.addEventListener('click', function (e) {
             e.preventDefault();
-            
+
             const cameraContainer = document.createElement('div');
             cameraContainer.className = 'camera-container';
             cameraContainer.innerHTML = `
@@ -381,9 +393,9 @@ document.addEventListener("DOMContentLoaded", function() {
                     </div>
                 </div>
             `;
-            
+
             document.body.appendChild(cameraContainer);
-            
+
             const video = cameraContainer.querySelector('video');
             const captureBtn = cameraContainer.querySelector('.capture-btn');
             const closeBtn = cameraContainer.querySelector('.close-btn');
@@ -391,18 +403,18 @@ document.addEventListener("DOMContentLoaded", function() {
             navigator.mediaDevices.getUserMedia({ video: true })
                 .then(stream => {
                     video.srcObject = stream;
-                    
+
                     captureBtn.addEventListener('click', () => {
                         const canvas = document.createElement('canvas');
                         canvas.width = video.videoWidth;
                         canvas.height = video.videoHeight;
                         canvas.getContext('2d').drawImage(video, 0, 0);
-                        
+
                         canvas.toBlob(blob => {
                             const file = new File([blob], 'camera-capture.jpg', { type: 'image/jpeg' });
                             stream.getTracks().forEach(track => track.stop());
                             cameraContainer.remove();
-                            
+
                             // Update file input and trigger upload
                             const dataTransfer = new DataTransfer();
                             dataTransfer.items.add(file);
@@ -411,7 +423,7 @@ document.addEventListener("DOMContentLoaded", function() {
                             processImage(file);
                         }, 'image/jpeg');
                     });
-                    
+
                     closeBtn.addEventListener('click', () => {
                         stream.getTracks().forEach(track => track.stop());
                         cameraContainer.remove();
@@ -429,7 +441,7 @@ document.addEventListener("DOMContentLoaded", function() {
         let isRecording = false;
         let statusCheckInterval;
 
-        speechToTextBtn.addEventListener("click", function() {
+        speechToTextBtn.addEventListener("click", function () {
             if (isRecording) {
                 stopSpeechRecording();
             } else {
@@ -451,7 +463,7 @@ document.addEventListener("DOMContentLoaded", function() {
             const originalPlaceholder = queryInput.placeholder;
             let secondsLeft = 15;
             queryInput.placeholder = `Listening... (${secondsLeft}s)`;
-            
+
             const countdownInterval = setInterval(() => {
                 secondsLeft--;
                 if (secondsLeft > 0) {
@@ -470,63 +482,63 @@ document.addEventListener("DOMContentLoaded", function() {
                 },
                 body: JSON.stringify({ action: 'start' })
             })
-            .then(response => response.json())
-            .then(data => {
-                console.log('Speech recognition started:', data);
-                
-                // Start checking for results
-                statusCheckInterval = setInterval(() => {
-                    fetch('/blog/speech-to-text/', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-CSRFToken': csrftoken
-                        },
-                        body: JSON.stringify({ action: 'status' })
-                    })
-                    .then(response => response.json())
-                    .then(statusData => {
-                        if (statusData.text) {
-                            queryInput.value = statusData.text;
-                        }
-                        
-                        // If recording completed
-                        if (statusData.status !== 'recording') {
-                            clearInterval(statusCheckInterval);
-                            resetSpeechUI(originalPlaceholder);
+                .then(response => response.json())
+                .then(data => {
+                    console.log('Speech recognition started:', data);
+
+                    // Start checking for results
+                    statusCheckInterval = setInterval(() => {
+                        fetch('/blog/speech-to-text/', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRFToken': csrftoken
+                            },
+                            body: JSON.stringify({ action: 'status' })
+                        })
+                            .then(response => response.json())
+                            .then(statusData => {
+                                if (statusData.text) {
+                                    queryInput.value = statusData.text;
+                                }
+
+                                // If recording completed
+                                if (statusData.status !== 'recording') {
+                                    clearInterval(statusCheckInterval);
+                                    resetSpeechUI(originalPlaceholder);
+                                    clearInterval(countdownInterval);
+                                }
+                            })
+                            .catch(error => {
+                                console.error('Error checking speech status:', error);
+                                clearInterval(statusCheckInterval);
+                                resetSpeechUI(originalPlaceholder);
+                                clearInterval(countdownInterval);
+                            });
+                    }, 1000);
+
+                    // Auto stop after 15 seconds
+                    setTimeout(() => {
+                        if (isRecording) {
+                            stopSpeechRecording();
                             clearInterval(countdownInterval);
+                            resetSpeechUI(originalPlaceholder);
                         }
-                    })
-                    .catch(error => {
-                        console.error('Error checking speech status:', error);
-                        clearInterval(statusCheckInterval);
-                        resetSpeechUI(originalPlaceholder);
-                        clearInterval(countdownInterval);
-                    });
-                }, 1000);
-                
-                // Auto stop after 15 seconds
-                setTimeout(() => {
-                    if (isRecording) {
-                        stopSpeechRecording();
-                        clearInterval(countdownInterval);
-                        resetSpeechUI(originalPlaceholder);
-                    }
-                }, 15000);
-            })
-            .catch(error => {
-                console.error('Error starting speech recognition:', error);
-                resetSpeechUI(originalPlaceholder);
-                clearInterval(countdownInterval);
-            });
+                    }, 15000);
+                })
+                .catch(error => {
+                    console.error('Error starting speech recognition:', error);
+                    resetSpeechUI(originalPlaceholder);
+                    clearInterval(countdownInterval);
+                });
         }
 
         function stopSpeechRecording() {
             if (!isRecording) return;
-            
+
             // Get CSRF token
             const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
-            
+
             // Stop the speech recognition
             fetch('/blog/speech-to-text/', {
                 method: 'POST',
@@ -536,18 +548,18 @@ document.addEventListener("DOMContentLoaded", function() {
                 },
                 body: JSON.stringify({ action: 'stop' })
             })
-            .then(response => response.json())
-            .then(data => {
-                console.log('Speech recognition stopped:', data);
-                if (data.text) {
-                    queryInput.value = data.text;
-                }
-                resetSpeechUI();
-            })
-            .catch(error => {
-                console.error('Error stopping speech recognition:', error);
-                resetSpeechUI();
-            });
+                .then(response => response.json())
+                .then(data => {
+                    console.log('Speech recognition stopped:', data);
+                    if (data.text) {
+                        queryInput.value = data.text;
+                    }
+                    resetSpeechUI();
+                })
+                .catch(error => {
+                    console.error('Error stopping speech recognition:', error);
+                    resetSpeechUI();
+                });
         }
 
         function resetSpeechUI(originalPlaceholder) {
@@ -556,27 +568,73 @@ document.addEventListener("DOMContentLoaded", function() {
             speechToTextBtn.title = 'Speak your question (15s)';
             isRecording = false;
             clearInterval(statusCheckInterval);
-            
+
             if (originalPlaceholder) {
                 queryInput.placeholder = originalPlaceholder;
             }
         }
+        setupImagePreviewModal();
     }
 });
 
 function refreshRecentAnalyses() {
     fetch('/blog/recent-analyses/')
-    .then(response => response.text())
-    .then(html => {
-        const parser = new DOMParser();
-        const doc = parser.parseFromString(html, "text/html");
+        .then(response => response.text())
+        .then(html => {
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, "text/html");
 
-        const updatedAnalyses = doc.querySelector(".analyses-grid");
+            const updatedAnalyses = doc.querySelector(".analyses-grid");
 
-        const current = document.querySelector(".analyses-grid");
-        if (current && updatedAnalyses) {
-            current.replaceWith(updatedAnalyses);
+            const current = document.querySelector(".analyses-grid");
+            if (current && updatedAnalyses) {
+                current.replaceWith(updatedAnalyses);
+            }
+        });
+
+
+}
+
+function setupImagePreviewModal() {
+    const dropZone = document.getElementById('drop-zone');
+    if (!dropZone) return;
+
+    dropZone.addEventListener('click', function(e) {
+        const target = e.target;
+        if (target.tagName === 'IMG') {
+            // Create modal overlay
+            const modal = document.createElement('div');
+            modal.style.position = 'fixed';
+            modal.style.top = 0;
+            modal.style.left = 0;
+            modal.style.width = '100vw';
+            modal.style.height = '100vh';
+            modal.style.backgroundColor = 'rgba(0,0,0,0.8)';
+            modal.style.display = 'flex';
+            modal.style.alignItems = 'center';
+            modal.style.justifyContent = 'center';
+            modal.style.zIndex = 10000;
+
+            // Create large image
+            const bigImg = document.createElement('img');
+            bigImg.src = target.src;
+            bigImg.style.maxWidth = '90%';
+            bigImg.style.maxHeight = '90%';
+            bigImg.style.borderRadius = '12px';
+            bigImg.style.boxShadow = '0 4px 20px rgba(0,0,0,0.5)';
+
+            // Append image to modal
+            modal.appendChild(bigImg);
+
+            // Close modal on click outside image
+            modal.addEventListener('click', function(ev) {
+                if (ev.target === modal) {
+                    modal.remove();
+                }
+            });
+
+            // Append modal to body
+            document.body.appendChild(modal);
         }
     });
 }
-
