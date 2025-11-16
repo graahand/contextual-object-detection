@@ -64,3 +64,5 @@ cont_env/
 
 /media/
 media/
+
+db.sqlite3
