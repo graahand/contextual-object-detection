@@ -31,7 +31,7 @@
             max-width: 50%;
         }
 
-        .image img{
+        .image img {
             border-radius: 15px;
             object-fit: cover;
         }
@@ -125,6 +125,44 @@
             border-radius: 5px;
             margin-bottom: 20px;
         }
+        .footer {
+            position: fixed;
+            /* stay on screen while scrolling */
+            left: 16px;
+            bottom: 16px;
+            z-index: 999;
+
+            background-color: #67985e;
+            color: #fff;
+            padding: 8px 14px;
+            border-radius: 999px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.25);
+
+            width: auto;
+            max-width: 60vw;
+            margin: 0;
+            box-sizing: border-box;
+        }
+
+        .footer-content {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .footer-content img {
+            height: 33px;
+            /* adjust size as you like */
+            width: auto;
+            display: block;
+        }
+
+        .footer-content p {
+            margin: 0;
+            font-size: 0.8rem;
+            white-space: nowrap;
+            /* keep on one line; remove if you want wrapping */
+        }
     </style>
 </head>
 
@@ -196,6 +234,12 @@
             </div>
         </div>
     </div>
+    <footer class="footer">
+        <div class="footer-content">
+            <img src="{% static 'blog/image/smarc.png' %}" alt="upload image">
+            <p>&copy; Bibek Poudel 2025</p>
+        </div>
+    </footer>
 </body>
 
 </html>

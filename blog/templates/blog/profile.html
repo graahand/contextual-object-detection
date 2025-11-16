@@ -1,6 +1,7 @@
 {% load static %}
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -8,32 +9,40 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
     <link rel="stylesheet" href="{% static 'blog/main.css' %}">
     <style>
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            row-gap: 12px;
+        }
+
         .profile-container {
             display: grid;
             grid-template-columns: 1fr 2fr;
             gap: 30px;
             margin-top: 20px;
         }
-        
+
         .profile-sidebar {
             background-color: white;
             border-radius: 10px;
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
             padding: 20px;
         }
-        
+
         .profile-content {
             background-color: white;
             border-radius: 10px;
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
             padding: 30px;
         }
-        
+
         .profile-header {
             text-align: center;
             margin-bottom: 30px;
         }
-        
+
         .profile-image {
             width: 150px;
             height: 150px;
@@ -44,7 +53,7 @@
             border: 4px solid var(--primary-light);
             display: block;
         }
-        
+
         .profile-image-placeholder {
             width: 150px;
             height: 150px;
@@ -56,23 +65,23 @@
             margin: 0 auto 20px;
             border: 4px solid var(--primary-light);
         }
-        
+
         .profile-image-placeholder i {
             font-size: 60px;
             color: #aaa;
         }
-        
+
         .profile-name {
             font-size: 1.5rem;
             margin-bottom: 5px;
             color: var(--text-primary);
         }
-        
+
         .profile-username {
             color: var(--text-secondary);
             margin-bottom: 20px;
         }
-        
+
         .profile-stats {
             display: flex;
             justify-content: space-between;
@@ -80,40 +89,40 @@
             padding-bottom: 20px;
             border-bottom: 1px solid #eee;
         }
-        
+
         .stat-item {
             text-align: center;
         }
-        
+
         .stat-value {
             font-size: 1.5rem;
             color: var(--primary);
             font-weight: bold;
         }
-        
+
         .stat-label {
             font-size: 0.8rem;
             color: var(--text-secondary);
         }
-        
+
         .section-title {
             color: var(--text-primary);
             margin-bottom: 20px;
             padding-bottom: 10px;
             border-bottom: 2px solid var(--primary-light);
         }
-        
+
         .form-group {
             margin-bottom: 20px;
         }
-        
+
         .form-group label {
             display: block;
             margin-bottom: 5px;
             color: var(--text-primary);
             font-weight: 600;
         }
-        
+
         .form-group textarea {
             width: 100%;
             padding: 12px;
@@ -121,7 +130,7 @@
             border-radius: 5px;
             font-size: 16px;
         }
-        
+
         .profile-btn {
             background-color: var(--primary);
             color: white;
@@ -134,11 +143,11 @@
             display: inline-block;
             transition: background-color 0.3s;
         }
-        
+
         .profile-btn:hover {
             background-color: var(--primary-dark);
         }
-        
+
         .analysis-card {
             display: flex;
             margin-bottom: 20px;
@@ -146,35 +155,35 @@
             border-radius: 5px;
             overflow: hidden;
         }
-        
+
         .analysis-image {
             width: 100px;
             height: 100px;
             object-fit: cover;
         }
-        
+
         .analysis-details {
             padding: 15px;
             flex: 1;
         }
-        
+
         .analysis-title {
             margin-top: 0;
             margin-bottom: 10px;
             color: var(--text-primary);
         }
-        
+
         .analysis-caption {
             color: var(--text-secondary);
             font-size: 0.9rem;
             margin-bottom: 10px;
         }
-        
+
         .analysis-date {
             font-size: 0.8rem;
             color: #999;
         }
-        
+
         .no-analyses {
             padding: 20px;
             text-align: center;
@@ -182,27 +191,67 @@
             border-radius: 5px;
             color: var(--text-secondary);
         }
-        
+
         .empty-bio {
             font-style: italic;
             color: var(--text-secondary);
         }
-        
+
+        .footer {
+            position: fixed;
+            /* stay on screen while scrolling */
+            left: 16px;
+            bottom: 16px;
+            z-index: 999;
+
+            background-color: #67985e;
+            color: #fff;
+            padding: 8px 14px;
+            border-radius: 999px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.25);
+
+            width: auto;
+            max-width: 60vw;
+            margin: 0;
+            box-sizing: border-box;
+        }
+
+        .footer-content {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .footer-content img {
+            height: 33px;
+            /* adjust size as you like */
+            width: auto;
+            display: block;
+        }
+
+        .footer-content p {
+            margin: 0;
+            font-size: 0.8rem;
+            white-space: nowrap;
+            /* keep on one line; remove if you want wrapping */
+        }
+
         @media (max-width: 768px) {
             .profile-container {
                 grid-template-columns: 1fr;
             }
-            
+
             .profile-sidebar {
                 margin-bottom: 20px;
             }
         }
     </style>
 </head>
+
 <body>
     <div class="container">
         <header class="header">
-            <h1>Contextual Object Detection</h1>
+            <h1 style="font-weight: 600; font-size: xx-large;">Contextual Object Detection</h1>
             <div class="user-actions">
                 <a href="{% url 'blog:home' %}" class="btn">
                     <i class="fas fa-home"></i> Home
@@ -212,17 +261,18 @@
                 </a>
             </div>
         </header>
-        
+
         {% if messages %}
         <div class="messages">
             {% for message in messages %}
-            <div class="{% if message.tags %}{{ message.tags }}{% endif %}-message" style="padding: 10px; margin-bottom: 20px; border-radius: 5px;">
+            <div class="{% if message.tags %}{{ message.tags }}{% endif %}-message"
+                style="padding: 10px; margin-bottom: 20px; border-radius: 5px;">
                 {{ message }}
             </div>
             {% endfor %}
         </div>
         {% endif %}
-        
+
         <div class="profile-container">
             <div class="profile-sidebar">
                 <div class="profile-header">
@@ -236,7 +286,7 @@
                     <h2 class="profile-name">{{ user.get_full_name }}</h2>
                     <div class="profile-username" style="color: rgb(163, 162, 162);">@{{ user.username }}</div>
                 </div>
-                
+
                 <div class="profile-stats">
                     <div class="stat-item">
                         <div class="stat-value">{{ user.analyses.count }}</div>
@@ -247,7 +297,7 @@
                         <div class="stat-label" style="color: rgb(163, 162, 162);">Joined</div>
                     </div>
                 </div>
-                
+
                 <h3>About</h3>
                 {% if user_profile.bio %}
                 <p>{{ user_profile.bio }}</p>
@@ -255,7 +305,7 @@
                 <p class="empty-bio">No bio information added yet.</p>
                 {% endif %}
             </div>
-            
+
             <div class="profile-content">
                 <div class="profile-section">
                     <h2 class="section-title">Edit Profile</h2>
@@ -268,7 +318,7 @@
                             <div class="error-message">{{ form.profile_picture.errors }}</div>
                             {% endif %}
                         </div>
-                        
+
                         <div class="form-group">
                             <label for="{{ form.bio.id_for_label }}">Bio</label>
                             {{ form.bio }}
@@ -276,11 +326,11 @@
                             <div class="error-message">{{ form.bio.errors }}</div>
                             {% endif %}
                         </div>
-                        
+
                         <button type="submit" class="btn primary">Save Changes</button>
                     </form>
                 </div>
-                
+
                 <div class="profile-section" style="margin-top: 40px;">
                     <h2 class="section-title">Recent Analyses</h2>
                     {% if user_analyses %}
@@ -303,12 +353,20 @@
                     {% else %}
                     <div class="no-analyses">
                         <p>You haven't uploaded any images for analysis yet.</p>
-                        <a href="{% url 'blog:home' %}" class="profile-btn" style="margin-top: 10px;">Upload an Image</a>
+                        <a href="{% url 'blog:home' %}" class="profile-btn" style="margin-top: 10px;">Upload an
+                            Image</a>
                     </div>
                     {% endif %}
                 </div>
             </div>
         </div>
     </div>
+    <footer class="footer">
+        <div class="footer-content">
+            <img src="{% static 'blog/image/smarc.png' %}" alt="upload image">
+            <p>&copy; Bibek Poudel 2025</p>
+        </div>
+    </footer>
 </body>
-</html> 
+
+</html>

@@ -8,125 +8,7 @@
     <title>Contextual Object Detection</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
     <link rel="stylesheet" href="{% static 'blog/main.css' %}">
-    <!-- <style>
-        .footer {
-    position: sticky;
-    bottom: 0;
-    left: 0;
-    width: 100%;
-    background-color: #67985eff; /* dark background /
-    color: #fff; / white text */
-    text-align: center;
-    padding: 15px 10px;
-    box-shadow: 0 -2px 5px rgba(0,0,0,0.2);
-    z-index: 999;
-}
-
-        .btn{
-            border-radius: 50px;
-        }
-        .btn:hover{
-             transform: translateY(-2px);
-             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
-        }
-        .results-container {
-            max-width: 800px;
-            margin: 20px auto;
-            padding: 20px;
-            background: white;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-        }
-
-        .caption-section {
-            margin-bottom: 20px;
-            padding: 15px;
-            border-radius: 8px;
-            background: #f8f9fa;
-        }
-
-        .caption-section h3 {
-            margin-top: 0;
-            color: #333;
-            font-size: 1.2em;
-            margin-bottom: 10px;
-        }
-
-        .caption-content {
-            line-height: 1.6;
-            color: #444;
-        }
-
-        .query-section {
-            margin-top: 20px;
-        }
-
-        .query-input-container {
-            display: flex;
-            gap: 10px;
-            align-items: center;
-            margin-bottom: 20px;
-        }
-
-        .query-input {
-            flex: 1;
-            padding: 12px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            font-size: 1rem;
-        }
-
-        .result-image {
-            max-width: 100%;
-            height: auto;
-            margin-bottom: 20px;
-            border-radius: 8px;
-        }
-
-        #speech-to-text-btn {
-            background-color: var(--primary);
-            color: white;
-            border: none;
-            border-radius: 50%;
-            width: 44px;
-            height: 44px;
-            padding: 0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            flex-shrink: 0;
-        }
-
-        #speech-to-text-btn:hover {
-            background-color: var(--primary-dark);
-            transform: scale(1.05);
-        }
-
-        #speech-to-text-btn.recording {
-            background-color: var(--error);
-            animation: pulse 2s infinite;
-        }
-
-        #speech-to-text-btn i {
-            font-size: 1.2rem;
-        }
-
-        @keyframes pulse {
-            0% {
-                box-shadow: 0 0 0 0 rgba(244, 67, 54, 0.7);
-            }
-
-            70% {
-                box-shadow: 0 0 0 10px rgba(244, 67, 54, 0);
-            }
-
-            100% {
-                box-shadow: 0 0 0 0 rgba(244, 67, 54, 0);
-            }
-        }
-    </style> -->
+    
     <style>
         /* Layout: make page fill height so footer sits at the bottom */
         body {
@@ -139,18 +21,19 @@
         }
 
         .container {
-            flex: 1;
             width: 100%;
-            /* use more horizontal space */
+            /* previous centred size */
             margin: 0 auto;
-            /* still centred, but wider */
-            padding: 24px 32px 40px;
-            /* slightly larger side padding */
+            /* centre it on the page */
+            padding: 24px 32px 0;
             display: grid;
             grid-template-columns: minmax(0, 1.2fr) minmax(0, 1.6fr);
+            /* left upload, right results */
             grid-auto-rows: auto;
             gap: 24px;
+            box-sizing: border-box;
         }
+
 
 
         /* By default, every direct child spans full width (header, history, etc.) */
@@ -424,7 +307,7 @@
             <h1 style="font-weight: 600; font-size: xx-large;">Contextual Object Detection</h1>
             {% if user.is_authenticated %}
             <div class="user-actions" style="display: flex; gap: 10px; align-items: center;">
-                <a href="{% url 'blog:profile' %}" class="btn" style="display: flex; align-items: center; gap: 10px;">
+                <a href="{% url 'blog:profile' %}" class="btn" style="display: flex; align-items: center; gap: 10px; padding: 0.8rem 1.5rem;">
                     {% if user.profile.profile_picture %}
                     <img src="{{ user.profile.profile_picture.url }}" alt="{{ user.username }}"
                         style="width: 30px; height: 30px; border-radius: 50%; object-fit: cover;">
@@ -433,7 +316,7 @@
                     {% endif %}
                     {{ user.username }}
                 </a>
-                <a href="{% url 'blog:logout' %}" class="btn">
+                <a href="{% url 'blog:logout' %}" class="btn" style="padding: 0.8rem 1.5rem;">
                     <i class="fas fa-sign-out-alt"></i> Logout
                 </a>
                 {% if user.is_staff %}
