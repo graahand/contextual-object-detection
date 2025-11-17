@@ -108,6 +108,8 @@ document.addEventListener("DOMContentLoaded", function () {
             if (resultsContainer) {
                 resultsContainer.innerHTML = '';
             }
+
+            refreshRecentAnalyses();
         });
     }
 
@@ -183,31 +185,32 @@ document.addEventListener("DOMContentLoaded", function () {
                 'X-CSRFToken': csrftoken
             }
         })
-            .then(response => {
-                if (response.status === 401 || response.status === 403) {
-                    // User is not authenticated
-                    window.location.href = '/blog/login/?next=/blog/';
-                    throw new Error('You need to login to use this feature');
-                }
-
-                if (!response.ok) {
-                    throw new Error('Network response was not ok: ' + response.status);
-                }
-                return response.json();
-            })
-            .then(data => {
-                if (data.error) {
-                    throw new Error(data.error);
-                }
-
-                if (data.status === 'processing') {
-                    // Start polling for results
-                    pollForResults(data.job_id);
-                }
-                displayResults(data)
-            })
-            .catch(error => {
-                resultsContainer.innerHTML = `
+        .then(response => {
+            if (response.status === 401 || response.status === 403) {
+                // User is not authenticated
+                window.location.href = '/blog/login/?next=/blog/';
+                throw new Error('You need to login to use this feature');
+            }
+            
+            if (!response.ok) {
+                throw new Error('Network response was not ok: ' + response.status);
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.error) {
+                throw new Error(data.error);
+            }
+            
+            if (data.status === 'processing') {
+                // Start polling for results
+                pollForResults(data.job_id);
+            }
+            displayResults(data)
+            refreshRecentAnalyses()
+        })
+        .catch(error => {
+            resultsContainer.innerHTML = `
                 <div class="error-message">
                     <i class="fas fa-exclamation-circle"></i>
                     <p>${error.message}</p>
@@ -436,146 +439,117 @@ document.addEventListener("DOMContentLoaded", function () {
         });
     }
 
-    // Speech to text functionality
-    if (speechToTextBtn) {
-        let isRecording = false;
-        let statusCheckInterval;
+// Speech-to-text functionality
+if (speechToTextBtn) {
+    let isRecording = false;
+    let mediaRecorder;
+    let audioChunks = [];
 
-        speechToTextBtn.addEventListener("click", function () {
-            if (isRecording) {
-                stopSpeechRecording();
-            } else {
-                startSpeechRecording();
-            }
+    speechToTextBtn.addEventListener("click", function () {
+        if (isRecording) {
+            stopRecording();
+        } else {
+            startRecording();
+        }
+    });
+
+    async function startRecording() {
+    try {
+        const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+
+        // Get audio stream from chosen device
+        const stream = await navigator.mediaDevices.getUserMedia({
+            audio: true 
         });
+        console.log("Recording audio from stream:", stream);
 
-        function startSpeechRecording() {
-            // Get CSRF token
-            const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+        mediaRecorder = new MediaRecorder(stream);
+        audioChunks = [];
 
-            // Update UI to show recording state
-            speechToTextBtn.innerHTML = '<i class="fas fa-microphone-slash"></i>';
-            speechToTextBtn.classList.add('recording');
-            speechToTextBtn.title = 'Stop recording';
-            isRecording = true;
+        mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+        mediaRecorder.onstop = async () => {
+            const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
 
-            // Show a countdown timer
-            const originalPlaceholder = queryInput.placeholder;
-            let secondsLeft = 15;
-            queryInput.placeholder = `Listening... (${secondsLeft}s)`;
+            // Convert WebM/Opus blob to base64
+            const audioBase64 = await blobToBase64(audioBlob);
+            console.log("Base64 audio data length:", audioBase64.length);
 
-            const countdownInterval = setInterval(() => {
-                secondsLeft--;
-                if (secondsLeft > 0) {
-                    queryInput.placeholder = `Listening... (${secondsLeft}s)`;
+            try {
+                const response = await fetch('/blog/speech-to-text/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrftoken
+                    },
+                    body: JSON.stringify({ audio_base64: `data:audio/webm;base64,${audioBase64}` })
+                });
+
+                if (!response.ok) throw new Error('Server returned ' + response.status);
+                const data = await response.json();
+                console.log("Data received from server:", data);
+
+                if (data.status === 'success' && data.text) {
+                    queryInput.value = data.text;
+                    console.log("detected text from backend: "+ data.text);
+                    
                 } else {
-                    clearInterval(countdownInterval);
+                    queryInput.value = "Could not hear anything. Please try again";
                 }
-            }, 1000);
-
-            // Start the speech recognition
-            fetch('/blog/speech-to-text/', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': csrftoken
-                },
-                body: JSON.stringify({ action: 'start' })
-            })
-                .then(response => response.json())
-                .then(data => {
-                    console.log('Speech recognition started:', data);
-
-                    // Start checking for results
-                    statusCheckInterval = setInterval(() => {
-                        fetch('/blog/speech-to-text/', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'X-CSRFToken': csrftoken
-                            },
-                            body: JSON.stringify({ action: 'status' })
-                        })
-                            .then(response => response.json())
-                            .then(statusData => {
-                                if (statusData.text) {
-                                    queryInput.value = statusData.text;
-                                }
-
-                                // If recording completed
-                                if (statusData.status !== 'recording') {
-                                    clearInterval(statusCheckInterval);
-                                    resetSpeechUI(originalPlaceholder);
-                                    clearInterval(countdownInterval);
-                                }
-                            })
-                            .catch(error => {
-                                console.error('Error checking speech status:', error);
-                                clearInterval(statusCheckInterval);
-                                resetSpeechUI(originalPlaceholder);
-                                clearInterval(countdownInterval);
-                            });
-                    }, 1000);
-
-                    // Auto stop after 15 seconds
-                    setTimeout(() => {
-                        if (isRecording) {
-                            stopSpeechRecording();
-                            clearInterval(countdownInterval);
-                            resetSpeechUI(originalPlaceholder);
-                        }
-                    }, 15000);
-                })
-                .catch(error => {
-                    console.error('Error starting speech recognition:', error);
-                    resetSpeechUI(originalPlaceholder);
-                    clearInterval(countdownInterval);
-                });
-        }
-
-        function stopSpeechRecording() {
-            if (!isRecording) return;
-
-            // Get CSRF token
-            const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
-
-            // Stop the speech recognition
-            fetch('/blog/speech-to-text/', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': csrftoken
-                },
-                body: JSON.stringify({ action: 'stop' })
-            })
-                .then(response => response.json())
-                .then(data => {
-                    console.log('Speech recognition stopped:', data);
-                    if (data.text) {
-                        queryInput.value = data.text;
-                    }
-                    resetSpeechUI();
-                })
-                .catch(error => {
-                    console.error('Error stopping speech recognition:', error);
-                    resetSpeechUI();
-                });
-        }
-
-        function resetSpeechUI(originalPlaceholder) {
-            speechToTextBtn.innerHTML = '<i class="fas fa-microphone"></i>';
-            speechToTextBtn.classList.remove('recording');
-            speechToTextBtn.title = 'Speak your question (15s)';
-            isRecording = false;
-            clearInterval(statusCheckInterval);
-
-            if (originalPlaceholder) {
-                queryInput.placeholder = originalPlaceholder;
+            } catch (err) {
+                console.error('Error sending audio:', err);
+                queryInput.value = "Error sending audio";
             }
-        }
-        setupImagePreviewModal();
+        };
+
+        mediaRecorder.start();
+        isRecording = true;
+
+        // Update UI
+        speechToTextBtn.innerHTML = '<i class="fas fa-microphone-slash"></i>';
+        speechToTextBtn.classList.add('recording');
+        speechToTextBtn.title = 'Stop recording';
+
+        // Auto-stop after 15 seconds
+        setTimeout(() => {
+            if (isRecording) stopRecording();
+        }, 15000);
+
+    } catch (err) {
+        console.error('Error accessing microphone:', err);
+        alert('Microphone access denied or unavailable.');
     }
-});
+}
+
+
+    function stopRecording() {
+        if (!isRecording) return;
+        mediaRecorder.stop();
+        mediaRecorder.stream.getTracks().forEach(track => track.stop());
+        resetSpeechUI();
+    }
+
+    function resetSpeechUI() {
+        isRecording = false;
+        speechToTextBtn.innerHTML = '<i class="fas fa-microphone"></i>';
+        speechToTextBtn.classList.remove('recording');
+        speechToTextBtn.title = 'Speak your question (15s)';
+    }
+
+    // Convert blob to base64
+function blobToBase64(blob) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            const base64data = reader.result.split(',')[1]; // remove "data:...base64,"
+            resolve(base64data);
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+    });
+}
+}
+
 
 function refreshRecentAnalyses() {
     fetch('/blog/recent-analyses/')

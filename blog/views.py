@@ -26,8 +26,15 @@ try:
     import django_rq
 except ImportError:
     raise ImportError("Please install django-rq: pip install django-rq")
-from .speech_to_text import SpeechRecognizer
+# from .speech_to_text import SpeechRecognizer
+from faster_whisper import WhisperModel
 import threading
+import tempfile
+from pydub import AudioSegment
+from django.conf import settings
+import time
+
+whisper_model = WhisperModel("small", device="cpu", compute_type="int8")
 
 # Set multiprocessing start method
 mp.set_start_method('spawn', force=True)
@@ -45,15 +52,15 @@ logger.info(f"Added VIPS path: {vips_bin_path}")
 speech_recognizer = None
 speech_lock = threading.Lock()
 
-def get_speech_recognizer():
-    global speech_recognizer
-    if speech_recognizer is None:
-        try:
-            speech_recognizer = SpeechRecognizer(recording_time=15)
-            logger.info("Speech recognizer initialized successfully")
-        except Exception as e:
-            logger.error(f"Failed to initialize speech recognizer: {str(e)}")
-    return speech_recognizer
+# def get_speech_recognizer():
+#     global speech_recognizer
+#     if speech_recognizer is None:
+#         try:
+#             speech_recognizer = SpeechRecognizer(recording_time=15)
+#             logger.info("Speech recognizer initialized successfully")
+#         except Exception as e:
+#             logger.error(f"Failed to initialize speech recognizer: {str(e)}")
+#     return speech_recognizer
 
 def home(request):
     """Render the home page."""
@@ -519,67 +526,123 @@ def check_job_status(request, job_id):
             'error': str(e)
         }, status=500)
 
-@csrf_exempt
-@login_required
-def speech_to_text(request):
-    """Handle speech-to-text conversion."""
-    if request.method == 'POST':
-        try:
-            data = json.loads(request.body)
-            action = data.get('action')
+# old speech detction model view
+
+# @csrf_exempt
+# @login_required
+# def speech_to_text(request):
+#     """Handle speech-to-text conversion."""
+#     if request.method == 'POST':
+#         try:
+#             data = json.loads(request.body)
+#             action = data.get('action')
             
-            recognizer = get_speech_recognizer()
-            if not recognizer:
-                return JsonResponse({
-                    'status': 'error',
-                    'message': 'Speech recognition service is not available'
-                }, status=503)
+#             recognizer = get_speech_recognizer()
+#             if not recognizer:
+#                 print("Speech recognition service is not available")
+#                 return JsonResponse({
+#                     'status': 'error',
+#                     'message': 'Speech recognition service is not available'
+#                 }, status=503)
             
-            with speech_lock:  # Use lock to prevent concurrent access
-                if action == 'start':
-                    # Start the speech recognition
-                    success = recognizer.start_recording()
-                    return JsonResponse({
-                        'status': 'recording' if success else 'error',
-                        'message': 'Recording started' if success else 'Failed to start recording'
-                    })
+#             with speech_lock:  # Use lock to prevent concurrent access
+#                 if action == 'start':
+#                     # Start the speech recognition
+#                     success = recognizer.start_recording()
+#                     msg = 'Recording started' if success else 'Failed to start recording'
+#                     print(msg)
+#                     return JsonResponse({
+#                         'status': 'recording' if success else 'error',
+#                         'message': 'Recording started' if success else 'Failed to start recording'
+#                     })
                 
-                elif action == 'stop':
-                    # Stop the speech recognition
-                    recognizer.stop_recording()
-                    text = recognizer.get_text()
-                    return JsonResponse({
-                        'status': 'success',
-                        'text': text
-                    })
+#                 elif action == 'stop':
+#                     # Stop the speech recognition
+#                     recognizer.stop_recording()
+#                     text = recognizer.get_text()
+#                     return JsonResponse({
+#                         'status': 'success',
+#                         'text': text
+#                     })
                     
-                elif action == 'status':
-                    # Get the current status
-                    return JsonResponse({
-                        'status': 'recording' if recognizer.is_recording else 'idle',
-                        'text': recognizer.get_text()
-                    })
+#                 elif action == 'status':
+#                     # Get the current status
+#                     return JsonResponse({
+#                         'status': 'recording' if recognizer.is_recording else 'idle',
+#                         'text': recognizer.get_text()
+#                     })
                     
-                else:
-                    return JsonResponse({
-                        'status': 'error',
-                        'message': 'Invalid action'
-                    }, status=400)
+#                 else:
+#                     return JsonResponse({
+#                         'status': 'error',
+#                         'message': 'Invalid action'
+#                     }, status=400)
                     
-        except Exception as e:
-            logger.error(f"Error in speech_to_text view: {str(e)}")
-            return JsonResponse({
-                'status': 'error',
-                'message': str(e)
-            }, status=500)
+#         except Exception as e:
+#             logger.error(f"Error in speech_to_text view: {str(e)}")
+#             return JsonResponse({
+#                 'status': 'error',
+#                 'message': str(e)
+#             }, status=500)
             
-    return JsonResponse({
-        'status': 'error',
-        'message': 'Method not allowed'
-    }, status=405) 
+#     return JsonResponse({
+#         'status': 'error',
+#         'message': 'Method not allowed'
+#     }, status=405) 
     
     
 @login_required
 def recent_analyses(request):
     analyses = ImageAnalysis.objects.filter(user=request.user).order_by('-upload_date')[:10]
     return render(request, "blog/recent_analyses_partial.html", {"analyses": analyses})
+
+@csrf_exempt
+@login_required
+def speech_to_text(request):
+    """Handle speech-to-text using Whisper."""
+    logger = logging.getLogger(__name__)
+    
+    if request.method != 'POST':
+        return JsonResponse({'status': 'error', 'message': 'Method not allowed'}, status=405)
+
+    try:
+        data = json.loads(request.body)
+        audio_b64 = data.get("audio_base64")
+        logger.info(f"Received audio: {type(audio_b64)}, length: {len(audio_b64) if audio_b64 else 'None'}")
+
+        if not audio_b64:
+            return JsonResponse({'status': 'error', 'message': 'No audio provided'}, status=400)
+        
+        # Decode base64 to bytes
+        header_removed = audio_b64.split(",")[1] if "," in audio_b64 else audio_b64
+        audio_bytes = base64.b64decode(header_removed)
+        logger.info(f"Decoded audio bytes: {len(audio_bytes)}")
+
+        # Convert WebM/Opus to WAV using pydub
+        audio_segment = AudioSegment.from_file(io.BytesIO(audio_bytes), format="webm")
+
+        # Save WAV file in MEDIA_ROOT/recorded_audio
+        recorded_dir = os.path.join(settings.MEDIA_ROOT, "recorded_audio")
+        os.makedirs(recorded_dir, exist_ok=True)  # create folder if not exists
+        tmp_wav_file_path = os.path.join(recorded_dir, f"audio_{int(time.time())}.wav")
+        audio_segment.export(tmp_wav_file_path, format="wav")
+        logger.info(f"WAV file saved for debugging: {tmp_wav_file_path}")
+
+        # Transcribe using Whisper
+        segments, info = whisper_model.transcribe(tmp_wav_file_path, beam_size=5)
+        text = " ".join([segment.text for segment in segments])
+        logger.info(f"Transcribed text: {text}, language: {info.language}, probability: {info.language_probability}")
+
+        print("Detected text:", text)
+
+        return JsonResponse({
+            "status": "success",
+            "text": text,
+            "language": info.language,
+            "language_probability": info.language_probability,
+            "file_path": tmp_wav_file_path 
+        })
+
+    except Exception as e:
+        logger.exception("Speech-to-text failed")
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
